@@ -1,0 +1,139 @@
+---
+title: "iPhoneXSMax Sentiment Analysis"
+author: "Gaurang Swarge"
+date: "26 September 2018"
+output: html_document
+---
+
+```{r setup, include=FALSE, warning=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+
+library(twitteR)
+library(RCurl)
+library(httr)
+library(tm)
+library(wordcloud)
+library(syuzhet)
+library(dplyr)
+
+#SETUP TWITTER ACCESS
+
+consumer_key = "51THYxhkzplYtMKy96JKffZvg"
+consumer_secret = "GO46ybMeKmsRqb0p34TMfj6RnbiwSKjDijd0hoTr18GvfNnoXO"
+access_token = "7939122-5Il5BCANgtQvx9f96FyJuPgF4WRvemFdaoKywer8tM"
+access_secret ="3lp9sbPs9T72CXdfd317M70WyE2g7AFkBIngXdoqvETZH"
+owner_id = 7939122
+
+setup_twitter_oauth(consumer_key,consumer_secret,access_token, access_secret)
+
+
+```
+
+## Extracting tweets from Twitter
+
+```{r warning=FALSE}
+
+tweets <- searchTwitter("iPhoneXSMAX",since='2018-09-10', until='2018-09-24', n = 15000, lang = "en")
+
+Orig.tweets.df <- twListToDF(tweets)
+write.csv(Orig.tweets.df,file = "extracted-tweets.csv")
+```
+
+```{r warning=FALSE}
+tweets.df <- Orig.tweets.df
+```
+
+
+```{r warning=FALSE}
+#Removing Unwanted Columns
+tweets.df <- tweets.df[-c(2:16)]
+View(tweets.df)
+#REMOVING Duplicate Tweets
+tweets.df <- unique(tweets.df)
+View(tweets.df)
+```
+
+
+## CLEANING TWEETS
+```{r warning=FALSE}
+## CLEANING TWEETS
+tweets.df$text = gsub("&amp", "", tweets.df$text)
+tweets.df$text = gsub("&amp", "", tweets.df$text)
+tweets.df$text = gsub("(RT|via)((?:\\b\\W*@\\w+)+)", "", tweets.df$text)
+tweets.df$text = gsub("@\\w+", "", tweets.df$text)
+tweets.df$text = gsub("[[:punct:]]", "", tweets.df$text)
+tweets.df$text = gsub("[[:digit:]]", "", tweets.df$text)
+tweets.df$text = gsub("http\\w+", "", tweets.df$text)
+tweets.df$text = gsub("[ \t]{2,}", "", tweets.df$text)
+tweets.df$text = gsub("^\\s+|\\s+$", "", tweets.df$text)
+
+tweets.df$text <- iconv(tweets.df$text, "ASCII", "UTF-8", sub="")
+
+#Creating the Corpus
+corpusiPhone = Corpus(VectorSource(tweets.df$text))
+
+#Converting to Lower Case
+corpusiPhone = tm_map(corpusiPhone, tolower)
+
+#Remove Puntuation
+corpusiPhone = tm_map(corpusiPhone, removePunctuation)
+
+# Remove stopwords, the, and, that, for, you etc
+corpusiPhone = tm_map(corpusiPhone, removeWords, c(stopwords("english")))
+
+#Creating WordCloud
+wordcloud(corpusiPhone,colors=rainbow(7),max.words=150)
+
+# Remove extra WhiteSpaces
+corpusiPhone = tm_map(corpusiPhone, stripWhitespace)
+
+# Stem Document
+corpusiPhone = tm_map(corpusiPhone, stemDocument)
+
+#Create DTM
+
+frequenciesiPhone = DocumentTermMatrix(corpusiPhone)
+
+frequenciesiPhone
+
+#Remove Sparse Terms
+iPhoneSparse = removeSparseTerms(frequenciesiPhone, 0.995)
+
+#convert to a Data Frame
+iPhoneSparse = as.data.frame(as.matrix(iPhoneSparse))
+
+#Make all Column / Variable names R-friendly
+colnames(iPhoneSparse) = make.names(colnames(iPhoneSparse))
+
+#Getting the sentiment value from the tweets
+sent.value <- get_sentiment(tweets.df$text)
+
+#making the categorical variable of the sentiment values
+category_senti <- ifelse(sent.value < 0, "Negative", ifelse(sent.value > 0, "Positive", "Neutral"))
+
+iPhoneSparse$Polarity = category_senti
+
+table(iPhoneSparse$Polarity)
+```
+
+## BUILDING CART & RANDOM FOREST
+``` {r warning=FALSE}
+# Build a CART model
+
+library(rpart)
+library(rpart.plot)
+
+tweetCART = rpart(Polarity ~ ., data=iPhoneSparse, method="class")
+
+prp(tweetCART,extra=2)
+
+#Build a Random Forest Model
+library(randomForest)
+set.seed(321)
+iPhoneSparse$Polarity <- factor(iPhoneSparse$Polarity)
+tweetRF <- randomForest(Polarity ~., data=iPhoneSparse)
+varImpPlot(tweetRF)
+
+```
+

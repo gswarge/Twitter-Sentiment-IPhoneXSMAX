@@ -18,12 +18,12 @@ library(syuzhet)
 library(dplyr)
 
 #SETUP TWITTER ACCESS
-
-consumer_key = "51THYxhkzplYtMKy96JKffZvg"
-consumer_secret = "GO46ybMeKmsRqb0p34TMfj6RnbiwSKjDijd0hoTr18GvfNnoXO"
-access_token = "7939122-5Il5BCANgtQvx9f96FyJuPgF4WRvemFdaoKywer8tM"
-access_secret ="3lp9sbPs9T72CXdfd317M70WyE2g7AFkBIngXdoqvETZH"
-owner_id = 7939122
+#Use your own values here
+consumer_key = ""
+consumer_secret = ""
+access_token = "-"
+access_secret =""
+owner_id = 
 
 setup_twitter_oauth(consumer_key,consumer_secret,access_token, access_secret)
 
